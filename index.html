@@ -64,7 +64,7 @@
                 <div class="card-content">
                     <h1>Bid Bot</h1>
                     <h5>Name: @{{name}}</h5>
-                    <h5>Current VP: something%</h5>
+                    <h5>Current VP: {{calcVP(profileData.last_vote_time, profileData.voting_power)}}%</h5>
                 </div>
                 <div class="card-tabs">
                     <ul class="tabs tabs-fixed-width teal lighten-5">
@@ -94,14 +94,12 @@
                         <h5>Post to bid URL on steemit</h5>
                         <input type="text" v-model="link">
                         <button class="btn" v-bind:class="{disabled: !bidValidate}">
-                            <a v-bind:href='bidCurrencyUrl("STEEM")'
-                                target="_blank">
+                            <a v-bind:href='bidCurrencyUrl("STEEM")' target="_blank">
                                 Bid {{bid}} STEEM
                             </a>
                         </button>
                         <button class="btn" v-bind:class="{disabled: !bidValidate}">
-                            <a v-bind:href='bidCurrencyUrl("SBD")'
-                                target="_blank">
+                            <a v-bind:href='bidCurrencyUrl("SBD")' target="_blank">
                                 Bid {{bid}} SBD
                             </a>
                         </button>
@@ -192,6 +190,7 @@
                 el: "#vue",
                 data: {
                     name: 'superoo7',
+                    profileData: {},
                     loading: true,
                     currentRound: [],
                     lastRound: [],
@@ -201,8 +200,9 @@
                     bidValidate: false
                 },
                 mounted() {
-                    this.reload();
                     var instance = M.Tabs.init(document.querySelector('.tabs'));
+                    this.reload();
+                    this.profile(this.name);
                 },
                 methods: {
                     reload: function (event) {
@@ -218,18 +218,44 @@
                             })
                     },
                     profile: function (name) {
+                        fetch('https://api.steemit.com/', {
+                                method: "POST",
+                                body: JSON.stringify({
+                                    "id": 1,
+                                    "jsonrpc": "2.0",
+                                    "method": "call",
+                                    "params": ["database_api", "get_accounts", [
+                                        [name]
+                                    ]]
+                                })
+                            })
+                            .then(d => d.json())
+                            .then(d => {
+                                this.profileData = d.result[0];
+                            })
+                    },
 
-                    }
+
 
                 },
                 computed: {
-                    bidCurrencyUrl: function() {
-                        if(this.link.startsWith("https://steemit.com/")) {
+                    bidCurrencyUrl: function () {
+                        if (this.link.startsWith("https://steemit.com/")) {
                             this.bidValidate = true;
                         } else {
                             this.bidValidate = false;
                         }
-                        return currency => `https://steemconnect.com/sign/transfer?from=&to=${this.name}&amount=${this.bid}%20${currency}&memo=${this.link}`
+                        return currency =>
+                            `https://steemconnect.com/sign/transfer?from=&to=${this.name}&amount=${this.bid}%20${currency}&memo=${this.link}`
+                    },
+                    calcVP: function () {
+                        return (last_vote_time, voting_power) => {
+                            var secondsago = (new Date().getTime() - new Date(last_vote_time + 'Z').getTime()) /
+                                1000;
+                            var vpow = voting_power + (10000 * secondsago) / 432000;
+                            var vmin = Math.min(vpow / 100, 100).toFixed(2);
+                            return vmin;
+                        }
                     }
                 }
             });
