@@ -113,7 +113,7 @@
                         <h5>Bid Amound</h5>
                         <input type="number" v-model="bid">
                         <h5>Post to bid URL on steemit</h5>
-                        <input type="text" v-model="link">
+                        <input type="text" v-model="link" placeholder="https://steemit.com/tag/@username/permlink">
                         <button class="btn" v-bind:class="{disabled: !bidValidate}">
                             <a v-bind:href='bidCurrencyUrl("STEEM")' target="_blank">
                                 Bid {{bid}} STEEM
@@ -230,7 +230,7 @@
                         this.loading = true;
                         this.currentRound = [];
                         this.lastRound = [];
-                        fetch('http://bot.wenghan.me/api/bids')
+                        fetch('/api/bids')
                             .then(d => d.json())
                             .then(d => {
                                 this.currentRound = d.current_round;
@@ -261,8 +261,24 @@
                 },
                 computed: {
                     bidCurrencyUrl: function () {
-                        if (this.link.startsWith("https://steemit.com/")) {
-                            this.bidValidate = true;
+                        if (!!this.link.match(/(http|https):\/\/(www\.steemit\.com\/|steemit\.com\/)/g)) {
+                            let link = this.link.match(/(https?:\/\/[^\s]+)/g)
+                            if (link.length === 1) {
+                                try {
+                                    let authorName = link[0].split(/[\/#]/)[4]
+                                    let permlinkName = link[0].split(/[\/#]/)[5]
+                                    // parse out author and permlink and check wether is correct
+                                    if (!(authorName.charAt(0) === '@' && !!permlinkName)) {
+                                        this.bidValidate = false;
+                                    } else {
+                                        this.bidValidate = true;
+                                    }
+                                } catch (err) {
+                                    this.bidValidate = false;
+                                }
+                            } else {
+                                this.bidValidate = false;
+                            }
                         } else {
                             this.bidValidate = false;
                         }
