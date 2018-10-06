@@ -36,6 +36,10 @@
         .flow-text {
             word-wrap: break-word;
         }
+
+        .btn a {
+            color: white;
+        }
     </style>
 </head>
 
@@ -54,43 +58,95 @@
         </nav>
     </header>
 
-    <main class="container row">
+    <main class="container row" id="vue">
         <div class="col s12 m12 center">
             <div class="card ">
                 <div class="card-content">
                     <h1>Bid Bot</h1>
-                    <h5>Name: something</h5>
+                    <h5>Name: @{{name}}</h5>
                     <h5>Current VP: something%</h5>
                 </div>
                 <div class="card-tabs">
                     <ul class="tabs tabs-fixed-width teal lighten-5">
-                        <li class="tab"><a class="active teal-text" href="#delegate"><h5>Delegate</h5></a></li>
-                        <li class="tab"><a class="teal-text" href="#bid"><h5>Bid</h5></a></li>
+                        <li class="tab"><a class="active teal-text" href="#delegate">
+                                <h5>Delegate</h5>
+                            </a></li>
+                        <li class="tab"><a class="teal-text" href="#bid">
+                                <h5>Bid</h5>
+                            </a></li>
                     </ul>
                 </div>
                 <div class="card-content grey lighten-4 teal-text">
                     <div id="delegate">
                         <h4>Delegate</h4>
+                        <input type="number" v-model="delegate">
+                        <a v-bind:href='`https://steemconnect.com/sign/delegateVestingShares?delegator=&delegatee=${name}&vesting_shares=${delegate}%20SP`'
+                            target="_blank">
+                            <button class="btn">
+                                Delegate {{delegate}} SP
+                            </button>
+                        </a>
                     </div>
                     <div id="bid">
                         <h4>Bid</h4>
+                        <h5>Bid Amound</h5>
+                        <input type="number" v-model="bid">
+                        <h5>Post to bid URL on steemit</h5>
+                        <input type="text" v-model="link">
+                        <button class="btn" v-bind:class="{disabled: !bidValidate}">
+                            <a v-bind:href='bidCurrencyUrl("STEEM")'
+                                target="_blank">
+                                Bid {{bid}} STEEM
+                            </a>
+                        </button>
+                        <button class="btn" v-bind:class="{disabled: !bidValidate}">
+                            <a v-bind:href='bidCurrencyUrl("SBD")'
+                                target="_blank">
+                                Bid {{bid}} SBD
+                            </a>
+                        </button>
                     </div>
                 </div>
             </div>
         </div>
+        <div class="col s12 center">
+            <button class="btn" v-on:click="reload">refresh</button>
+        </div>
         <div class="row col s12 m6">
             <h1>Current Round</h1><br>
             <div class="current_round">
-                <div class="progress">
+                <div class="progress" v-if="loading">
                     <div class="indeterminate"></div>
+                </div>
+                <div v-for="d in currentRound">
+                    <div class="card">
+                        <div class="card-content">
+                            <p>Bid by: {{d.sender}}</p>
+                            <p>Amount: {{d.amound}} {{d.currency}}</p>
+                            <p>Author: {{d.author}}</p>
+                            <a v-bind:href="d.url">{{d.url}}</a>
+                            <p>Weightage: {{d.weight/100}}%</p>
+                        </div>
+                    </div>
                 </div>
             </div>
         </div>
         <div class="row col s12 m6">
             <h1>Last Round</h1><br>
             <div class="last_round">
-                <div class="progress">
+                <div class="progress" v-if="loading">
                     <div class="indeterminate"></div>
+                </div>
+                <div v-for="d in lastRound">
+                    <div class="card">
+                        <div class="card-content">
+                            <p>Bid by: {{d.sender}}</p>
+                            <p>Amount: {{d.amound}} {{d.currency}}</p>
+                            <p>Author: {{d.author}}</p>
+                            <a v-bind:href="d.url">{{d.url}}</a>
+                            <p>Weightage: {{d.weight/100}}%</p>
+                        </div>
+                    </div>
                 </div>
             </div>
         </div>
@@ -100,13 +156,15 @@
     <footer class="page-footer teal">
         <div class="footer-copyright">
             <div class="container">
-                © 2018 Copyright 
+                © 2018 Copyright
                 <a class="grey-text text-lighten-4" href="https://steemit.com/@superoo7">@superoo7</a>
             </div>
         </div>
     </footer>
 
 
+    <script src="https://cdn.jsdelivr.net/npm/vue" integrity="sha384-9MzmvphdUvLZJKasjD7VqYE4SqffhZDOwDTMyokP2tx+fjBo59ljvrlgUAaaME44"
+        crossorigin="anonymous"></script>
     <!-- Compiled and minified JavaScript -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/materialize/1.0.0/js/materialize.min.js" integrity="sha384-ZOED+d9HxogEQwD+jFvux96iGQR9TxfJO+mPF2ZS0TuKH6eWrmvPsDpO6I0OWdiX"
         crossorigin="anonymous"></script>
@@ -127,67 +185,54 @@
             }
         }
 
-        function fLoad () {
+        function fLoad() {
             // Materialize
-            var instance = M.Tabs.init(document.querySelector('.tabs'));
 
-            var currentRound = document.querySelector('.current_round');
-            var lastRound = document.querySelector('.last_round');
+            var vue = new Vue({
+                el: "#vue",
+                data: {
+                    name: 'superoo7',
+                    loading: true,
+                    currentRound: [],
+                    lastRound: [],
+                    delegate: 15,
+                    bid: 0.1,
+                    link: "",
+                    bidValidate: false
+                },
+                mounted() {
+                    this.reload();
+                    var instance = M.Tabs.init(document.querySelector('.tabs'));
+                },
+                methods: {
+                    reload: function (event) {
+                        this.loading = true;
+                        this.currentRound = [];
+                        this.lastRound = [];
+                        fetch('http://bot.wenghan.me/api/bids')
+                            .then(d => d.json())
+                            .then(d => {
+                                this.currentRound = d.current_round;
+                                this.lastRound = d.last_round;
+                                this.loading = false;
+                            })
+                    },
+                    profile: function (name) {
 
-            function fetchData() {
-                // fetch('/api/bids')
-                fetch('http://bot.wenghan.me/api/bids')
-                    .then(
-                        d => d.json()
-                    ).then(d => {
-                        currentRound.innerHTML = '';
-                        lastRound.innerHTML = '';
-                        d.current_round.map(
-                            r => {
-                                currentRound.innerHTML +=
-                                    `
-                                <div class="card">
-                                    <div class="card-content">
-                                        <p class="flow-text">
-                                            Sender: ${r.sender}
-                                            <br>
-                                            Author: ${r.author}
-                                            <br<
-                                            URL: <a href="${r.url}">${r.url}</a>
-                                            Amount: ${r.amount} ${r.currency}
-                                            Weightage: ${r.weight/100}%
-                                        </p>
-                                    </div>
-                                </div>
-                            `;
-                            }
-                        )
-                        d.last_round.map(
-                            r => {
-                                lastRound.innerHTML +=
-                                    `
-                                <div class="card">
-                                    <div class="card-content">
-                                        <p class="flow-text">
-                                            Sender: ${r.sender}
-                                            <br>
-                                            Author: ${r.author}
-                                            <br>
-                                            URL: <a href="${r.url}">${r.url}</a>
-                                            <br>
-                                            Amount: ${r.amount} ${r.currency}
-                                            <br>
-                                            Weightage: ${r.weight/100}%
-                                        </p>
-                                    </div>
-                                </div>
-                            `;
-                            }
-                        )
-                    })
-            }
+                    }
 
-            fetchData();
+                },
+                computed: {
+                    bidCurrencyUrl: function() {
+                        if(this.link.startsWith("https://steemit.com/")) {
+                            this.bidValidate = true;
+                        } else {
+                            this.bidValidate = false;
+                        }
+                        return currency => `https://steemconnect.com/sign/transfer?from=&to=${this.name}&amount=${this.bid}%20${currency}&memo=${this.link}`
+                    }
+                }
+            });
         }
     </script>
 </body>
