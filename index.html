@@ -65,15 +65,10 @@
 
 <body>
 
-    <header>
+    <header id="header">
         <nav>
             <div class="nav-wrapper teal center">
-                <a href="/" class="brand-logo center">Bid Bot</a>
-                <!-- <ul id="nav-mobile" class="right hide-on-med-and-down">
-                    <li><a href="sass.html">Sass</a></li>
-                    <li><a href="badges.html">Components</a></li>
-                    <li><a href="collapsible.html">JavaScript</a></li>
-                </ul> -->
+                <a href="/" class="brand-logo center">{{name}}</a>
             </div>
         </nav>
     </header>
@@ -85,6 +80,7 @@
                     <h1>Bid Bot</h1>
                     <h5>Name: @{{name}}</h5>
                     <h5>Current VP: {{calcVP(profileData.last_vote_time, profileData.voting_power)}}%</h5>
+                    <h5>Next Round In: {{nextRound()}}</h5>
                 </div>
                 <div class="card-tabs">
                     <ul class="tabs tabs-fixed-width teal lighten-5">
@@ -188,6 +184,7 @@
         crossorigin="anonymous"></script>
 
     <script>
+        var __NAME__ = "superoo7";
         if (window.attachEvent) {
             window.attachEvent('onload', fLoad);
         } else {
@@ -205,11 +202,17 @@
 
         function fLoad() {
             // Materialize
+            var title = new Vue({
+                el: "#header",
+                data: {
+                    name: __NAME__
+                }
+            })
 
             var vue = new Vue({
                 el: "#vue",
                 data: {
-                    name: 'superoo7',
+                    name: __NAME__,
                     profileData: {},
                     loading: true,
                     currentRound: [],
@@ -217,7 +220,7 @@
                     delegate: 15,
                     bid: 0.1,
                     link: "",
-                    bidValidate: false
+                    bidValidate: false,
                 },
                 mounted() {
                     var instance = M.Tabs.init(document.querySelector('.tabs'));
@@ -255,6 +258,10 @@
                             })
                     },
 
+                    nextRound: function () {
+                        return this.fullIn(parseFloat(this.calcVP(this.profileData.last_vote_time, this.profileData.voting_power) *
+                            100))
+                    }
 
 
                 },
@@ -292,7 +299,32 @@
                             var vmin = Math.min(vpow / 100, 100).toFixed(2);
                             return vmin;
                         }
+                    },
+                    fullIn: function () {
+                        return votingPower => {
+                            var fullInString;
+                            var remainingPowerToGet = 100.0 - votingPower / 100;
+                            // 1% every 72minutes
+                            var minutesNeeded = remainingPowerToGet * 72;
+                            if (minutesNeeded === 0) {
+                                fullInString = "Already full!";
+                            } else {
+                                var fullInDays = parseInt(minutesNeeded / 1440);
+                                var fullInHours = parseInt((minutesNeeded - fullInDays * 1440) / 60);
+                                var fullInMinutes = parseInt((minutesNeeded - fullInDays * 1440 -
+                                    fullInHours * 60));
+
+                                fullInString = (fullInDays === 0 ? '' : fullInDays + (fullInDays > 1 ?
+                                        ' days ' : 'day ')) +
+                                    (fullInHours === 0 ? '' : fullInHours + (fullInHours > 1 ?
+                                        ' hours ' : 'hour ')) +
+                                    (fullInMinutes === 0 ? '' : fullInMinutes + (fullInMinutes > 1 ?
+                                        ' minutes ' : 'minute'));
+                            }
+                            return fullInString;
+                        }
                     }
+
                 }
             });
         }
