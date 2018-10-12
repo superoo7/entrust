@@ -1,0 +1,335 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="google" content="notranslate">
+    <meta http-equiv="Content-Language" content="en">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta http-equiv="X-UA-Compatible" content="ie=edge">
+    <meta name="identifier-url" content="http://entrust.surge.sh" />
+    <meta name="title" content="Bid bot" />
+    <meta name="description" content="Bid bot on steem blockchain" />
+    <meta name="abstract" content="Bid bot on steem blockchain" />
+    <meta name="keywords" content="bidbot, steem, blockchain, steemit" />
+    <meta name="author" content="superoo7" />
+    <meta name="revisit-after" content="15" />
+    <meta name="language" content="EN" />
+    <meta name="copyright" content="© 2018 superoo7" />
+    <meta name="robots" content="All" />
+    <!-- Twitter -->
+    <meta name="twitter:card" content="summary">
+    <meta name="twitter:title" content="Bid Bot">
+    <meta name="twitter:description" content="Bid Bot on steemblockchain">
+    <meta name="twitter:site" content="superoo7">
+    <meta name="twitter:creator" content="superoo7">
+    <!-- Open Graph general (Facebook, Pinterest & Google+) -->
+    <meta name="og:title" content="Entrust Bidbot">
+    <meta name="og:description" content="Entrust Bidbot, Bid Bot on steemblockchain">
+    <meta name="og:site_name" content="Entrust Bidbot">
+    <meta name="og:type" content="website">
+    <title>Entrust Bidbot</title>
+    <!-- Compiled and minified CSS -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/materialize/1.0.0/css/materialize.min.css"
+        integrity="sha384-5KZdSYqynSzIjQGS2M1O3HW6HVDBjfNx0v5Y2eQuE3vvQ9NTiiPK9/GWc0yYCrgw" crossorigin="anonymous">
+    <style>
+        body {
+            display: flex;
+            min-height: 100vh;
+            flex-direction: column;
+        }
+
+        main {
+            flex: 1 0 auto;
+        }
+
+        .tabs .tab a:hover {
+            background-color: #b2dfdb;
+        }
+
+        .tabs .tab a.active {
+            background-color: #80cbc4;
+        }
+        
+        .tabs .indicator {
+            background-color: #b2dfdb; 
+        }
+        
+        .flow-text {
+            word-wrap: break-word;
+        }
+
+        .btn a {
+            color: white;
+        }
+    </style>
+</head>
+
+<body>
+
+    <header id="header">
+        <nav>
+            <div class="nav-wrapper teal center">
+                <a href="/" class="brand-logo center">{{name}}</a>
+            </div>
+        </nav>
+    </header>
+
+    <main class="container row" id="vue">
+        <div class="col s12 m12 center">
+            <div class="card ">
+                <div class="card-content">
+                    <h1>Bid Bot</h1>
+                    <h5>Name: @{{name}}</h5>
+                    <h5>Current VP: {{calcVP(profileData.last_vote_time, profileData.voting_power)}}%</h5>
+                    <h5>Next Round In: {{nextRound()}}</h5>
+                </div>
+                <div class="card-tabs">
+                    <ul class="tabs tabs-fixed-width teal lighten-5">
+                        <li class="tab"><a class="active teal-text" href="#delegate">
+                                <h5>Delegate</h5>
+                            </a></li>
+                        <li class="tab"><a class="teal-text" href="#bid">
+                                <h5>Bid</h5>
+                            </a></li>
+                    </ul>
+                </div>
+                <div class="card-content grey lighten-4 teal-text">
+                    <div id="delegate">
+                        <h4>Delegate</h4>
+                        <input type="number" v-model="delegate">
+                        <a v-bind:href='`https://steemconnect.com/sign/delegateVestingShares?delegator=&delegatee=${name}&vesting_shares=${delegate}%20SP`'
+                            target="_blank">
+                            <button class="btn">
+                                Delegate {{delegate}} SP
+                            </button>
+                        </a>
+                    </div>
+                    <div id="bid">
+                        <h4>Bid</h4>
+                        <h5>Bid Amound</h5>
+                        <input type="number" v-model="bid">
+                        <h5>Post to bid URL on steemit</h5>
+                        <input type="text" v-model="link" placeholder="https://steemit.com/tag/@username/permlink">
+                        <button class="btn" v-bind:class="{disabled: !bidValidate}">
+                            <a v-bind:href='bidCurrencyUrl("STEEM")' target="_blank">
+                                Bid {{bid}} STEEM
+                            </a>
+                        </button>
+                        <button class="btn" v-bind:class="{disabled: !bidValidate}">
+                            <a v-bind:href='bidCurrencyUrl("SBD")' target="_blank">
+                                Bid {{bid}} SBD
+                            </a>
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col s12 center">
+            <button class="btn" v-on:click="reload">refresh</button>
+        </div>
+        <div class="row col s12 m6">
+            <h1>Current Round</h1><br>
+            <div class="current_round">
+                <div class="progress" v-if="loading">
+                    <div class="indeterminate"></div>
+                </div>
+                <div v-for="d in currentRound">
+                    <div class="card">
+                        <div class="card-content">
+                            <p>Bid by: {{d.sender}}</p>
+                            <p>Amount: {{d.amount}} {{d.currency}}</p>
+                            <p>Author: {{d.author}}</p>
+                            <a class="flow-text" v-bind:href="d.url">{{d.url}}</a>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="row col s12 m6">
+            <h1>Last Round</h1><br>
+            <div class="last_round">
+                <div class="progress" v-if="loading">
+                    <div class="indeterminate"></div>
+                </div>
+                <div v-for="d in lastRound">
+                    <div class="card">
+                        <div class="card-content">
+                            <p>Bid by: {{d.sender}}</p>
+                            <p>Amount: {{d.amount}} {{d.currency}}</p>
+                            <p>Author: {{d.author}}</p>
+                            <a class="flow-text" v-bind:href="d.url">{{d.url}}</a>
+                            <p>Weightage: {{d.weight/100}}%</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </main>
+
+
+    <footer class="page-footer teal">
+        <div class="footer-copyright">
+            <div class="container">
+                © 2018 Copyright
+                <a class="grey-text text-lighten-4" href="https://steemit.com/@superoo7">@superoo7</a>
+            </div>
+        </div>
+    </footer>
+
+
+    <script src="https://cdn.jsdelivr.net/npm/vue" integrity="sha384-9MzmvphdUvLZJKasjD7VqYE4SqffhZDOwDTMyokP2tx+fjBo59ljvrlgUAaaME44"
+        crossorigin="anonymous"></script>
+    <!-- Compiled and minified JavaScript -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/materialize/1.0.0/js/materialize.min.js" integrity="sha384-ZOED+d9HxogEQwD+jFvux96iGQR9TxfJO+mPF2ZS0TuKH6eWrmvPsDpO6I0OWdiX"
+        crossorigin="anonymous"></script>
+
+    <script>
+        var __NAME__ = "entrust";
+        if (window.attachEvent) {
+            window.attachEvent('onload', fLoad);
+        } else {
+            if (window.onload) {
+                var curronload = window.onload;
+                var newonload = function (evt) {
+                    curronload(evt);
+                    fLoad(evt);
+                };
+                window.onload = newonload;
+            } else {
+                window.onload = fLoad;
+            }
+        }
+
+        function fLoad() {
+            // Materialize
+            var title = new Vue({
+                el: "#header",
+                data: {
+                    name: __NAME__
+                }
+            })
+
+            var vue = new Vue({
+                el: "#vue",
+                data: {
+                    name: __NAME__,
+                    profileData: {},
+                    loading: true,
+                    currentRound: [],
+                    lastRound: [],
+                    delegate: 15,
+                    bid: 0.1,
+                    link: "",
+                    bidValidate: false,
+                },
+                mounted() {
+                    var instance = M.Tabs.init(document.querySelector('.tabs'));
+                    this.reload();
+                    this.profile(this.name);
+                },
+                methods: {
+                    reload: function (event) {
+                        this.loading = true;
+                        this.currentRound = [];
+                        this.lastRound = [];
+                        fetch('http://bot.wenghan.me/api/bids')
+                            .then(d => d.json())
+                            .then(d => {
+                                this.currentRound = d.current_round;
+                                this.lastRound = d.last_round;
+                                this.loading = false;
+                            })
+                    },
+                    profile: function (name) {
+                        fetch('https://api.steemit.com/', {
+                                method: "POST",
+                                body: JSON.stringify({
+                                    "id": 1,
+                                    "jsonrpc": "2.0",
+                                    "method": "call",
+                                    "params": ["database_api", "get_accounts", [
+                                        [name]
+                                    ]]
+                                })
+                            })
+                            .then(d => d.json())
+                            .then(d => {
+                                this.profileData = d.result[0];
+                            })
+                    },
+
+                    nextRound: function () {
+                        return this.fullIn(parseFloat(this.calcVP(this.profileData.last_vote_time, this.profileData.voting_power) *
+                            100))
+                    }
+
+
+                },
+                computed: {
+                    bidCurrencyUrl: function () {
+                        if (!!this.link.match(/(http|https):\/\/(www\.steemit\.com\/|steemit\.com\/)/g)) {
+                            let link = this.link.match(/(https?:\/\/[^\s]+)/g)
+                            if (link.length === 1) {
+                                try {
+                                    let authorName = link[0].split(/[\/#]/)[4]
+                                    let permlinkName = link[0].split(/[\/#]/)[5]
+                                    // parse out author and permlink and check wether is correct
+                                    if (!(authorName.charAt(0) === '@' && !!permlinkName)) {
+                                        this.bidValidate = false;
+                                    } else {
+                                        this.bidValidate = true;
+                                    }
+                                } catch (err) {
+                                    this.bidValidate = false;
+                                }
+                            } else {
+                                this.bidValidate = false;
+                            }
+                        } else {
+                            this.bidValidate = false;
+                        }
+                        return currency =>
+                            `https://steemconnect.com/sign/transfer?from=&to=${this.name}&amount=${this.bid}%20${currency}&memo=${this.link}`
+                    },
+                    calcVP: function () {
+                        return (last_vote_time, voting_power) => {
+                            var secondsago = (new Date().getTime() - new Date(last_vote_time + 'Z').getTime()) /
+                                1000;
+                            var vpow = voting_power + (10000 * secondsago) / 432000;
+                            var vmin = Math.min(vpow / 100, 100).toFixed(2);
+                            return vmin;
+                        }
+                    },
+                    fullIn: function () {
+                        return votingPower => {
+                            var fullInString;
+                            var remainingPowerToGet = 100.0 - votingPower / 100;
+                            // 1% every 72minutes
+                            var minutesNeeded = remainingPowerToGet * 72;
+                            if (minutesNeeded === 0) {
+                                fullInString = "Ready to vote!";
+                            } else {
+                                var fullInDays = parseInt(minutesNeeded / 1440);
+                                var fullInHours = parseInt((minutesNeeded - fullInDays * 1440) / 60);
+                                var fullInMinutes = parseInt((minutesNeeded - fullInDays * 1440 -
+                                    fullInHours * 60));
+
+                                fullInString = (fullInDays === 0 ? '' : fullInDays + (fullInDays > 1 ?
+                                        ' days ' : 'day ')) +
+                                    (fullInHours === 0 ? '' : fullInHours + (fullInHours > 1 ?
+                                        ' hours ' : 'hour ')) +
+                                    (fullInMinutes === 0 ? '' : fullInMinutes + (fullInMinutes > 1 ?
+                                        ' minutes ' : 'minute'));
+                            }
+                            return fullInString;
+                        }
+                    }
+
+                }
+            });
+        }
+    </script>
+</body>
+
+</html>
