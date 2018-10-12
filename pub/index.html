@@ -233,7 +233,7 @@
                         this.loading = true;
                         this.currentRound = [];
                         this.lastRound = [];
-                        fetch('http://bot.wenghan.me/api/bids')
+                        fetch('/api/bids')
                             .then(d => d.json())
                             .then(d => {
                                 this.currentRound = d.current_round;
